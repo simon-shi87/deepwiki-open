@@ -45,9 +45,8 @@ RUN \
     rm -rf /etc/apt/sources.list.d/* && \
     # 3. 配置apt非交互模式（解决debconf前端报错）
     export DEBIAN_FRONTEND=noninteractive && \
-    # 4. 更新源并安装依赖（添加--no-install-recommends减少冗余）
     apt-get update && \
-    apt-get install -y --no-install-recommends \
+    apt-get install -y \
         curl \
         gnupg \
         git \
@@ -55,11 +54,11 @@ RUN \
     && \
     # 5. 使用阿里云NodeSource镜像（稳定且同步及时）
     mkdir -p /etc/apt/keyrings && \
-    curl -fsSL https://mirrors.aliyun.com/nodesource/gpgkey/nodesource-repo.gpg.key | gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg && \
-    echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://mirrors.aliyun.com/nodesource/deb/node_20.x nodistro main" | tee /etc/apt/sources.list.d/nodesource.list && \
+    && curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg \
+     && echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_20.x nodistro main" | tee /etc/apt/sources.list.d/nodesource.list \
     # 6. 再次更新源并安装Node.js
     apt-get update && \
-    apt-get install -y --no-install-recommends nodejs && \
+    apt-get install -y nodejs && \
     # 7. 配置npm国内镜像（淘宝源）
     npm config set registry https://registry.npmmirror.com && \
     # 8. 清理缓存，减小镜像体积
