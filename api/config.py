@@ -231,6 +231,8 @@ DEFAULT_EXCLUDED_DIRS: List[str] = [
     "./.idea/", "./.vscode/", "./.vs/", "./.eclipse/", "./.settings/",
     # Logs and temporary files
     "./logs/", "./log/", "./tmp/", "./temp/",
+    # Testing
+    "./test/"
 ]
 
 DEFAULT_EXCLUDED_FILES: List[str] = [

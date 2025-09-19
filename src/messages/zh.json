@@ -81,7 +81,15 @@
     "hideDefault": "隐藏默认配置",
     "viewDefault": "查看默认配置",
     "authorizationCode": "授权码",
-    "authorizationRequired": "生成wiki页面需要填写授权码"
+    "authorizationRequired": "生成wiki页面需要填写授权码",
+    "configureSet": "配置",
+    "filterMode": "过滤模式",
+    "excludeMode": "排除目录或文件",
+    "includeMode": "包含目录或文件",
+    "includedDirs": "要包含的目录",
+    "includedFiles": "要包含的文件",
+    "enterIncludedFiles": "输入要包含的文件，每行一个...",
+    "enterIncludedDirs": "输入要包含的目录，每行一个..."
   },
   "footer": {
     "copyright": "DeepWiki - 为代码仓库提供AI驱动的文档"

@@ -2,18 +2,10 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Deepwiki-Open",
-            "type": "python",
+            "name": "Python 调试程序: 模块",
+            "type": "debugpy",
             "request": "launch",
-            "module": "uvicorn",
-            "args": [
-                "api.api:app",
-                "--reload",
-                "--port",
-                "8001"
-            ],
-            "jinja": true,
-            "justMyCode": true
-        }
+            "module": "api.main"
+        },
     ]
 }

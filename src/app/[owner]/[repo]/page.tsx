@@ -527,8 +527,14 @@ Remember:
 
           // Create a promise that resolves when the WebSocket connection is complete
           await new Promise<void>((resolve, reject) => {
+            // If the connection doesn't open within 5 seconds, fall back to HTTP
+            const timeout = setTimeout(() => {
+              reject(new Error('WebSocket connection timeout'));
+            }, 5000);
+
             // Set up event handlers
             ws.onopen = () => {
+              clearTimeout(timeout);
               console.log(`WebSocket connection established for page: ${page.title}`);
               // Send the request as JSON
               ws.send(JSON.stringify(requestBody));
@@ -536,22 +542,9 @@ Remember:
             };
 
             ws.onerror = (error) => {
+              clearTimeout(timeout);
               console.error('WebSocket error:', error);
               reject(new Error('WebSocket connection failed'));
-            };
-
-            // If the connection doesn't open within 5 seconds, fall back to HTTP
-            const timeout = setTimeout(() => {
-              reject(new Error('WebSocket connection timeout'));
-            }, 5000);
-
-            // Clear the timeout if the connection opens successfully
-            ws.onopen = () => {
-              clearTimeout(timeout);
-              console.log(`WebSocket connection established for page: ${page.title}`);
-              // Send the request as JSON
-              ws.send(JSON.stringify(requestBody));
-              resolve();
             };
           });
 
@@ -824,8 +817,14 @@ IMPORTANT:
 
         // Create a promise that resolves when the WebSocket connection is complete
         await new Promise<void>((resolve, reject) => {
+          // If the connection doesn't open within 5 seconds, fall back to HTTP
+          const timeout = setTimeout(() => {
+            reject(new Error('WebSocket connection timeout'));
+          }, 5000);
+
           // Set up event handlers
           ws.onopen = () => {
+            clearTimeout(timeout);
             console.log('WebSocket connection established for wiki structure');
             // Send the request as JSON
             ws.send(JSON.stringify(requestBody));
@@ -833,22 +832,9 @@ IMPORTANT:
           };
 
           ws.onerror = (error) => {
+            clearTimeout(timeout);
             console.error('WebSocket error:', error);
             reject(new Error('WebSocket connection failed'));
-          };
-
-          // If the connection doesn't open within 5 seconds, fall back to HTTP
-          const timeout = setTimeout(() => {
-            reject(new Error('WebSocket connection timeout'));
-          }, 5000);
-
-          // Clear the timeout if the connection opens successfully
-          ws.onopen = () => {
-            clearTimeout(timeout);
-            console.log('WebSocket connection established for wiki structure');
-            // Send the request as JSON
-            ws.send(JSON.stringify(requestBody));
-            resolve();
           };
         });
 
@@ -1916,7 +1902,7 @@ IMPORTANT:
     <div className="h-screen paper-texture p-4 md:p-8 flex flex-col">
       <style>{wikiStyles}</style>
 
-      <header className="max-w-[90%] xl:max-w-[1400px] mx-auto mb-8 h-fit w-full">
+      {/* <header className="max-w-[90%] xl:max-w-[1400px] mx-auto mb-8 h-fit w-full">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div className="flex items-center gap-4">
             <Link href="/" className="text-[var(--accent-primary)] hover:text-[var(--highlight)] flex items-center gap-1.5 transition-colors border-b border-[var(--border-color)] hover:border-[var(--accent-primary)] pb-0.5">
@@ -1924,7 +1910,7 @@ IMPORTANT:
             </Link>
           </div>
         </div>
-      </header>
+      </header> */}
 
       <main className="flex-1 max-w-[90%] xl:max-w-[1400px] mx-auto overflow-y-auto">
         {isLoading ? (
@@ -2049,7 +2035,7 @@ IMPORTANT:
               </div>
 
               {/* Wiki Type Indicator */}
-              <div className="mb-3 flex items-center text-xs text-[var(--muted)]">
+              {/* <div className="mb-3 flex items-center text-xs text-[var(--muted)]">
                 <span className="mr-2">Wiki Type:</span>
                 <span className={`px-2 py-0.5 rounded-full ${isComprehensiveView
                   ? 'bg-[var(--accent-primary)]/10 text-[var(--accent-primary)] border border-[var(--accent-primary)]/30'
@@ -2058,10 +2044,10 @@ IMPORTANT:
                     ? (messages.form?.comprehensive || 'Comprehensive')
                     : (messages.form?.concise || 'Concise')}
                 </span>
-              </div>
+              </div> */}
 
               {/* Refresh Wiki button */}
-              <div className="mb-5">
+              {/* <div className="mb-5">
                 <button
                   onClick={() => setIsModelSelectionModalOpen(true)}
                   disabled={isLoading}
@@ -2070,10 +2056,10 @@ IMPORTANT:
                   <FaSync className={`mr-2 ${isLoading ? 'animate-spin' : ''}`} />
                   {messages.repoPage?.refreshWiki || 'Refresh Wiki'}
                 </button>
-              </div>
+              </div> */}
 
               {/* Export buttons */}
-              {Object.keys(generatedPages).length > 0 && (
+              {/* {Object.keys(generatedPages).length > 0 && (
                 <div className="mb-5">
                   <h4 className="text-sm font-semibold text-[var(--foreground)] mb-3 font-serif">
                     {messages.repoPage?.exportWiki || 'Export Wiki'}
@@ -2102,7 +2088,7 @@ IMPORTANT:
                     </div>
                   )}
                 </div>
-              )}
+              )} */}
 
               <h4 className="text-md font-semibold text-[var(--foreground)] mb-3 font-serif">
                 {messages.repoPage?.pages || 'Pages'}
@@ -2169,14 +2155,14 @@ IMPORTANT:
         ) : null}
       </main>
 
-      <footer className="max-w-[90%] xl:max-w-[1400px] mx-auto mt-8 flex flex-col gap-4 w-full">
+      {/* <footer className="max-w-[90%] xl:max-w-[1400px] mx-auto mt-8 flex flex-col gap-4 w-full">
         <div className="flex justify-between items-center gap-4 text-center text-[var(--muted)] text-sm h-fit w-full bg-[var(--card-bg)] rounded-lg p-3 shadow-sm border border-[var(--border-color)]">
           <p className="flex-1 font-serif">
             {messages.footer?.copyright || 'DeepWiki - Generate Wiki from GitHub/Gitlab/Bitbucket repositories'}
           </p>
           <ThemeToggle />
         </div>
-      </footer>
+      </footer> */}
 
       {/* Floating Chat Button */}
       {!isLoading && wikiStructure && (

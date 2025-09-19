@@ -19,6 +19,274 @@ from requests.exceptions import RequestException
 
 from api.tools.embedder import get_embedder
 
+def get_repository_structure(repo_url: str, repo_type: str = "github", token: str = None) -> tuple[str, str]:
+    """
+    Get repository structure (file tree and README) for remote repositories.
+    
+    Args:
+        repo_url: Repository URL
+        repo_type: Type of repository (github, gitlab, bitbucket)
+        token: Access token for private repositories
+        
+    Returns:
+        Tuple of (file_tree_string, readme_content)
+    """
+    try:
+        owner = extract_owner_from_url(repo_url)
+        repo = extract_repo_from_url(repo_url)
+        
+        if repo_type == "github":
+            return get_github_structure(owner, repo, token)
+        elif repo_type == "gitlab":
+            return get_gitlab_structure(owner, repo, token, repo_url)
+        elif repo_type == "bitbucket":
+            return get_bitbucket_structure(owner, repo, token)
+        else:
+            raise ValueError(f"Unsupported repository type: {repo_type}")
+    except Exception as e:
+        logger.error(f"Error getting repository structure: {str(e)}")
+        raise
+
+def extract_owner_from_url(repo_url: str) -> str:
+    """Extract owner/organization name from repository URL."""
+    try:
+        parts = repo_url.rstrip('/').split('/')
+        if len(parts) >= 2:
+            return parts[-2]
+        return "unknown"
+    except Exception:
+        return "unknown"
+
+def extract_repo_from_url(repo_url: str) -> str:
+    """Extract repository name from repository URL."""
+    try:
+        parts = repo_url.rstrip('/').split('/')
+        if len(parts) >= 1:
+            repo_name = parts[-1]
+            if repo_name.endswith('.git'):
+                repo_name = repo_name[:-4]
+            return repo_name
+        return "unknown"
+    except Exception:
+        return "unknown"
+
+def get_github_structure(owner: str, repo: str, token: str = None) -> tuple[str, str]:
+    """Get GitHub repository structure."""
+    try:
+        # Create headers
+        headers = {'Accept': 'application/vnd.github.v3+json'}
+        if token:
+            headers['Authorization'] = f'Bearer {token}'
+        
+        # Get repository info to find default branch
+        repo_url = f"https://api.github.com/repos/{owner}/{repo}"
+        response = requests.get(repo_url, headers=headers)
+        response.raise_for_status()
+        repo_data = response.json()
+        default_branch = repo_data.get('default_branch', 'main')
+        
+        # Get file tree
+        tree_url = f"https://api.github.com/repos/{owner}/{repo}/git/trees/{default_branch}?recursive=1"
+        response = requests.get(tree_url, headers=headers)
+        response.raise_for_status()
+        tree_data = response.json()
+        
+        # Extract file paths
+        file_tree = "\n".join([
+            item['path'] for item in tree_data.get('tree', [])
+            if item['type'] == 'blob'
+        ])
+        
+        # Get README content
+        readme_content = ""
+        try:
+            readme_url = f"https://api.github.com/repos/{owner}/{repo}/readme"
+            response = requests.get(readme_url, headers=headers)
+            if response.status_code == 200:
+                readme_data = response.json()
+                readme_content = base64.b64decode(readme_data['content']).decode('utf-8')
+        except Exception as e:
+            logger.warning(f"Could not fetch README: {str(e)}")
+        
+        return file_tree, readme_content
+        
+    except Exception as e:
+        logger.error(f"Error getting GitHub structure: {str(e)}")
+        raise
+
+def get_gitlab_structure(owner: str, repo: str, token: str = None, repo_url: str = None) -> tuple[str, str]:
+    """Get GitLab repository structure."""
+    try:
+        # Extract domain and project path
+        if repo_url:
+            parsed = urlparse(repo_url)
+            domain = f"{parsed.scheme}://{parsed.netloc}"
+            project_path = f"{owner}/{repo}"
+        else:
+            domain = "https://gitlab.com"
+            project_path = f"{owner}/{repo}"
+        
+        # Create headers
+        headers = {'Content-Type': 'application/json'}
+        if token:
+            headers['PRIVATE-TOKEN'] = token
+        
+        encoded_project_path = quote(project_path, safe='')
+        
+        # Get project info
+        project_url = f"{domain}/api/v4/projects/{encoded_project_path}"
+        response = requests.get(project_url, headers=headers)
+        response.raise_for_status()
+        project_data = response.json()
+        default_branch = project_data.get('default_branch', 'main')
+        
+        # Get file tree
+        tree_url = f"{domain}/api/v4/projects/{encoded_project_path}/repository/tree?recursive=true&per_page=100"
+        files_data = []
+        page = 1
+        
+        while True:
+            response = requests.get(f"{tree_url}&page={page}", headers=headers)
+            response.raise_for_status()
+            page_data = response.json()
+            
+            if not page_data:
+                break
+                
+            files_data.extend(page_data)
+            
+            # Check if there's a next page
+            if 'x-next-page' not in response.headers:
+                break
+            page += 1
+        
+        # Extract file paths
+        file_tree = "\n".join([
+            item['path'] for item in files_data
+            if item['type'] == 'blob'
+        ])
+        
+        # Get README content
+        readme_content = ""
+        try:
+            readme_url = f"{domain}/api/v4/projects/{encoded_project_path}/repository/files/README.md/raw"
+            response = requests.get(readme_url, headers=headers)
+            if response.status_code == 200:
+                readme_content = response.text
+        except Exception as e:
+            logger.warning(f"Could not fetch GitLab README: {str(e)}")
+        
+        return file_tree, readme_content
+        
+    except Exception as e:
+        logger.error(f"Error getting GitLab structure: {str(e)}")
+        raise
+
+def get_bitbucket_structure(owner: str, repo: str, token: str = None) -> tuple[str, str]:
+    """Get Bitbucket repository structure."""
+    try:
+        # Create headers
+        headers = {'Content-Type': 'application/json'}
+        if token:
+            headers['Authorization'] = f'Bearer {token}'
+        
+        # Get repository info
+        repo_url = f"https://api.bitbucket.org/2.0/repositories/{owner}/{repo}"
+        response = requests.get(repo_url, headers=headers)
+        response.raise_for_status()
+        repo_data = response.json()
+        default_branch = repo_data['mainbranch']['name']
+        
+        # Get file tree
+        tree_url = f"https://api.bitbucket.org/2.0/repositories/{owner}/{repo}/src/{default_branch}/?recursive=true&per_page=100"
+        response = requests.get(tree_url, headers=headers)
+        response.raise_for_status()
+        tree_data = response.json()
+        
+        # Extract file paths
+        file_tree = "\n".join([
+            item['path'] for item in tree_data.get('values', [])
+            if item['type'] == 'commit_file'
+        ])
+        
+        # Get README content
+        readme_content = ""
+        try:
+            readme_url = f"https://api.bitbucket.org/2.0/repositories/{owner}/{repo}/src/{default_branch}/README.md"
+            response = requests.get(readme_url, headers=headers)
+            if response.status_code == 200:
+                readme_content = response.text
+        except Exception as e:
+            logger.warning(f"Could not fetch Bitbucket README: {str(e)}")
+        
+        return file_tree, readme_content
+        
+    except Exception as e:
+        logger.error(f"Error getting Bitbucket structure: {str(e)}")
+        raise
+
+def get_file_content(repo_url: str, file_path: str, repo_type: str = "github", token: str = None) -> str:
+    """Get content of a specific file from a remote repository."""
+    try:
+        owner = extract_owner_from_url(repo_url)
+        repo = extract_repo_from_url(repo_url)
+        
+        if repo_type == "github":
+            headers = {'Accept': 'application/vnd.github.v3+json'}
+            if token:
+                headers['Authorization'] = f'Bearer {token}'
+            
+            # Get file content
+            file_url = f"https://api.github.com/repos/{owner}/{repo}/contents/{file_path}"
+            response = requests.get(file_url, headers=headers)
+            response.raise_for_status()
+            file_data = response.json()
+            
+            if file_data.get('encoding') == 'base64':
+                return base64.b64decode(file_data['content']).decode('utf-8')
+            else:
+                return file_data.get('content', '')
+                
+        elif repo_type == "gitlab":
+            headers = {'Content-Type': 'application/json'}
+            if token:
+                headers['PRIVATE-TOKEN'] = token
+            
+            parsed = urlparse(repo_url)
+            domain = f"{parsed.scheme}://{parsed.netloc}"
+            project_path = f"{owner}/{repo}"
+            encoded_project_path = quote(project_path, safe='')
+            encoded_file_path = quote(file_path, safe='')
+            
+            file_url = f"{domain}/api/v4/projects/{encoded_project_path}/repository/files/{encoded_file_path}/raw"
+            response = requests.get(file_url, headers=headers)
+            response.raise_for_status()
+            return response.text
+            
+        elif repo_type == "bitbucket":
+            headers = {'Content-Type': 'application/json'}
+            if token:
+                headers['Authorization'] = f'Bearer {token}'
+            
+            # Get default branch first
+            repo_info_url = f"https://api.bitbucket.org/2.0/repositories/{owner}/{repo}"
+            response = requests.get(repo_info_url, headers=headers)
+            response.raise_for_status()
+            repo_data = response.json()
+            default_branch = repo_data['mainbranch']['name']
+            
+            file_url = f"https://api.bitbucket.org/2.0/repositories/{owner}/{repo}/src/{default_branch}/{file_path}"
+            response = requests.get(file_url, headers=headers)
+            response.raise_for_status()
+            return response.text
+            
+        else:
+            raise ValueError(f"Unsupported repository type: {repo_type}")
+            
+    except Exception as e:
+        logger.error(f"Error getting file content: {str(e)}")
+        raise
+
 # Configure logging
 logger = logging.getLogger(__name__)
 
